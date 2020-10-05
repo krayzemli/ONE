@@ -283,19 +283,42 @@ inline void StridedSlice(const StridedSliceParams &op_params, const Shape &unext
   const int stop_d = StopForAxis(params_copy, input_shape, 3, start_d);
 
   T *out_ptr = output_data;
-  for (int in_b = start_b; !LoopCondition(in_b, stop_b, params_copy.strides[0]);
-       in_b += params_copy.strides[0])
+  if (params_copy.strides[3] == 1)
   {
-    for (int in_h = start_h; !LoopCondition(in_h, stop_h, params_copy.strides[1]);
-         in_h += params_copy.strides[1])
+    for (int in_b = start_b; !LoopCondition(in_b, stop_b, params_copy.strides[0]);
+         in_b += params_copy.strides[0])
     {
-      for (int in_w = start_w; !LoopCondition(in_w, stop_w, params_copy.strides[2]);
-           in_w += params_copy.strides[2])
+      for (int in_h = start_h; !LoopCondition(in_h, stop_h, params_copy.strides[1]);
+           in_h += params_copy.strides[1])
       {
-        for (int in_d = start_d; !LoopCondition(in_d, stop_d, params_copy.strides[3]);
-             in_d += params_copy.strides[3])
+        for (int in_w = start_w; !LoopCondition(in_w, stop_w, params_copy.strides[2]);
+             in_w += params_copy.strides[2])
         {
-          *out_ptr++ = input_data[Offset(input_shape, in_b, in_h, in_w, in_d)];
+          for (int in_d = start_d; !LoopCondition(in_d, stop_d, 1);
+               in_d += 1)
+          {
+            *out_ptr++ = input_data[Offset(input_shape, in_b, in_h, in_w, in_d)];
+          }
+        }
+      }
+    }
+  }
+  else
+  {
+    for (int in_b = start_b; !LoopCondition(in_b, stop_b, params_copy.strides[0]);
+         in_b += params_copy.strides[0])
+    {
+      for (int in_h = start_h; !LoopCondition(in_h, stop_h, params_copy.strides[1]);
+           in_h += params_copy.strides[1])
+      {
+        for (int in_w = start_w; !LoopCondition(in_w, stop_w, params_copy.strides[2]);
+             in_w += params_copy.strides[2])
+        {
+          for (int in_d = start_d; !LoopCondition(in_d, stop_d, params_copy.strides[3]);
+               in_d += params_copy.strides[3])
+          {
+            *out_ptr++ = input_data[Offset(input_shape, in_b, in_h, in_w, in_d)];
+          }
         }
       }
     }
