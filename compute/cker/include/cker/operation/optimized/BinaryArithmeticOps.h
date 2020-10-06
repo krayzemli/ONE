@@ -218,6 +218,28 @@ inline void AddElementwiseQuant8(int size, const BinaryArithmeticOpParam &params
   }
 }
 
+struct BinaryOpFuncMinFloat
+{
+#ifdef USE_NEON
+  static inline float32x4_t calculate(const float32x4_t &a, const float32x4_t &b)
+  {
+    return vminq_f32(a, b);
+  }
+#endif // USE_NEON
+  static inline float calculate(const float a, const float b) { return std::min(a, b); }
+};
+
+struct BinaryOpFuncMaxFloat
+{
+#ifdef USE_NEON
+  static inline float32x4_t calculate(const float32x4_t &a, const float32x4_t &b)
+  {
+    return vmaxq_f32(a, b);
+  }
+#endif // USE_NEON
+  static inline float calculate(const float a, const float b) { return std::max(a, b); }
+};
+
 struct BinaryOpFuncAddFloat
 {
 #ifdef USE_NEON
@@ -534,7 +556,8 @@ inline void BroadcastAddDispatchQuant8(const BinaryArithmeticOpParam &params,
   }
 }
 
-inline void BroadcastAddDispatch(const BinaryArithmeticOpParam &params, const Shape &input1_shape,
+template<OPERATOR>
+inline void CommutativeFloatOperatorBroadcastDispatch(const BinaryArithmeticOpParam &params, const Shape &input1_shape,
                                  const float *input1_data, const Shape &input2_shape,
                                  const float *input2_data, const Shape &output_shape,
                                  float *output_data)
@@ -542,13 +565,13 @@ inline void BroadcastAddDispatch(const BinaryArithmeticOpParam &params, const Sh
   if (params.broadcast_category == BroadcastableOpCategory::kGenericBroadcast)
   {
     const std::function<float(const float &, const float &)> fn =
-        [](const float &a, const float &b) -> float { return a + b; };
+        [](const float &a, const float &b) -> float { return OPERATOR::calculate(a, b); };
     reference::BroadcastBinaryArithmeticOpSlow(params, input1_shape, input1_data, input2_shape,
                                                input2_data, output_shape, output_data, fn);
   }
   else
   {
-    auto implFuncs = getBinaryOpWithActivationImplFloat<BinaryOpFuncAddFloat>(params);
+    auto implFuncs = getBinaryOpWithActivationImplFloat<OPERATOR>(params);
 
     BinaryBroadcastFiveFold(params, params.broadcast_category ==
                                         BroadcastableOpCategory::kSecondInputBroadcastsFast,
@@ -566,28 +589,29 @@ inline void Sub(const BinaryArithmeticOpParam &params, const Shape &input1_shape
   (*implFuncs.first)(flat_size, params, input1_data, input2_data, output_data);
 }
 
-inline void BroadcastSubDispatch(const BinaryArithmeticOpParam &params, const Shape &input1_shape,
+template<OPERATOR>
+inline void NonCommutativeFloatOperatorBroadcastDispatch(const BinaryArithmeticOpParam &params, const Shape &input1_shape,
                                  const float *input1_data, const Shape &input2_shape,
                                  const float *input2_data, const Shape &output_shape,
                                  float *output_data)
 {
   if (params.broadcast_category == BroadcastableOpCategory::kFirstInputBroadcastsFast)
   {
-    auto implFuncs = getBinaryOpWithActivationImplFloat<BinaryOpFuncSubFloat>(params);
+    auto implFuncs = getBinaryOpWithActivationImplFloat<OPERATOR>(params);
     BinaryBroadcastFiveFold(params, false, input1_shape, input1_data, input2_shape, input2_data,
                             output_shape, output_data, implFuncs.first, implFuncs.second);
   }
   else if (params.broadcast_category == BroadcastableOpCategory::kSecondInputBroadcastsFast)
   {
     auto implFuncs =
-        getBinaryOpWithActivationImplFloat<BinaryOpFuncSwapArgs<BinaryOpFuncSubFloat>>(params);
+        getBinaryOpWithActivationImplFloat<BinaryOpFuncSwapArgs<OPERATOR>>(params);
     BinaryBroadcastFiveFold(params, true, input1_shape, input1_data, input2_shape, input2_data,
                             output_shape, output_data, implFuncs.first, implFuncs.second);
   }
   else
   {
     const std::function<float(const float &, const float &)> fn =
-        [](const float &a, const float &b) -> float { return a - b; };
+        [](const float &a, const float &b) -> float { OPERATOR::calculate(a, b); };
     reference::BroadcastBinaryArithmeticOpSlow(params, input1_shape, input1_data, input2_shape,
                                                input2_data, output_shape, output_data, fn);
   }
@@ -727,27 +751,6 @@ inline void BroadcastMulDispatchQuant8(const BinaryArithmeticOpParam &params,
                            uint8_t *)>(MulElementwiseQuant8),
       static_cast<void (*)(int, const BinaryArithmeticOpParam &, uint8_t, const uint8_t *,
                            uint8_t *)>(MulSimpleBroadcastQuant8));
-}
-
-inline void BroadcastMulDispatch(const BinaryArithmeticOpParam &params, const Shape &input1_shape,
-                                 const float *input1_data, const Shape &input2_shape,
-                                 const float *input2_data, const Shape &output_shape,
-                                 float *output_data)
-{
-  if (params.broadcast_category == BroadcastableOpCategory::kGenericBroadcast)
-  {
-    // TODO: Use GetBinaryArithmeticFn
-    const std::function<float(const float &, const float &)> fn =
-        [](const float &a, const float &b) -> float { return a * b; };
-    reference::BroadcastBinaryArithmeticOpSlow(params, input1_shape, input1_data, input2_shape,
-                                               input2_data, output_shape, output_data, fn);
-    return;
-  }
-  auto implFuncs = getBinaryOpWithActivationImplFloat<BinaryOpFuncMulFloat>(params);
-  BinaryBroadcastFiveFold(params, params.broadcast_category ==
-                                      BroadcastableOpCategory::kSecondInputBroadcastsFast,
-                          input1_shape, input1_data, input2_shape, input2_data, output_shape,
-                          output_data, implFuncs.first, implFuncs.second);
 }
 
 inline void Div(const BinaryArithmeticOpParam &params, const Shape &input1_shape,
