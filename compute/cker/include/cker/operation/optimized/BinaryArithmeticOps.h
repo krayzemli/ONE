@@ -557,10 +557,11 @@ inline void BroadcastAddDispatchQuant8(const BinaryArithmeticOpParam &params,
 }
 
 template <typename OPERATOR>
-inline void CommutativeFloatOperatorBroadcastDispatch(const BinaryArithmeticOpParam &params, const Shape &input1_shape,
-                                 const float *input1_data, const Shape &input2_shape,
-                                 const float *input2_data, const Shape &output_shape,
-                                 float *output_data)
+inline void
+CommutativeFloatOperatorBroadcastDispatch(const BinaryArithmeticOpParam &params,
+                                          const Shape &input1_shape, const float *input1_data,
+                                          const Shape &input2_shape, const float *input2_data,
+                                          const Shape &output_shape, float *output_data)
 {
   if (params.broadcast_category == BroadcastableOpCategory::kGenericBroadcast)
   {
@@ -590,10 +591,11 @@ inline void Sub(const BinaryArithmeticOpParam &params, const Shape &input1_shape
 }
 
 template <typename OPERATOR>
-inline void NonCommutativeFloatOperatorBroadcastDispatch(const BinaryArithmeticOpParam &params, const Shape &input1_shape,
-                                 const float *input1_data, const Shape &input2_shape,
-                                 const float *input2_data, const Shape &output_shape,
-                                 float *output_data)
+inline void
+NonCommutativeFloatOperatorBroadcastDispatch(const BinaryArithmeticOpParam &params,
+                                             const Shape &input1_shape, const float *input1_data,
+                                             const Shape &input2_shape, const float *input2_data,
+                                             const Shape &output_shape, float *output_data)
 {
   if (params.broadcast_category == BroadcastableOpCategory::kFirstInputBroadcastsFast)
   {
@@ -603,8 +605,7 @@ inline void NonCommutativeFloatOperatorBroadcastDispatch(const BinaryArithmeticO
   }
   else if (params.broadcast_category == BroadcastableOpCategory::kSecondInputBroadcastsFast)
   {
-    auto implFuncs =
-        getBinaryOpWithActivationImplFloat<BinaryOpFuncSwapArgs<OPERATOR>>(params);
+    auto implFuncs = getBinaryOpWithActivationImplFloat<BinaryOpFuncSwapArgs<OPERATOR>>(params);
     BinaryBroadcastFiveFold(params, true, input1_shape, input1_data, input2_shape, input2_data,
                             output_shape, output_data, implFuncs.first, implFuncs.second);
   }

@@ -303,13 +303,16 @@ inline void BroadcastBinaryArithmeticOp(BinaryArithmeticOpParam &params, const S
   switch (op_type)
   {
     case nnfw::cker::BinaryArithmeticOpType::ADD:
-      optimized::CommutativeFloatOperatorBroadcastDispatch<optimized::BinaryOpFuncAddFloat>(params, input1_shape, input1_data, input2_shape, input2_data, output_shape, output_data);
+      optimized::CommutativeFloatOperatorBroadcastDispatch<optimized::BinaryOpFuncAddFloat>(
+          params, input1_shape, input1_data, input2_shape, input2_data, output_shape, output_data);
       break;
     case nnfw::cker::BinaryArithmeticOpType::MUL:
-      optimized::CommutativeFloatOperatorBroadcastDispatch<optimized::BinaryOpFuncMulFloat>(params, input1_shape, input1_data, input2_shape, input2_data, output_shape, output_data);
+      optimized::CommutativeFloatOperatorBroadcastDispatch<optimized::BinaryOpFuncMulFloat>(
+          params, input1_shape, input1_data, input2_shape, input2_data, output_shape, output_data);
       break;
     case nnfw::cker::BinaryArithmeticOpType::SUB:
-      optimized::NonCommutativeFloatOperatorBroadcastDispatch<optimized::BinaryOpFuncSubFloat>(params, input1_shape, input1_data, input2_shape, input2_data, output_shape, output_data);
+      optimized::NonCommutativeFloatOperatorBroadcastDispatch<optimized::BinaryOpFuncSubFloat>(
+          params, input1_shape, input1_data, input2_shape, input2_data, output_shape, output_data);
       break;
     case nnfw::cker::BinaryArithmeticOpType::DIV:
       optimized::BroadcastDivDispatch(params, input1_shape, input1_data, input2_shape, input2_data,
