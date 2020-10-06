@@ -556,7 +556,7 @@ inline void BroadcastAddDispatchQuant8(const BinaryArithmeticOpParam &params,
   }
 }
 
-template<OPERATOR>
+template <typename OPERATOR>
 inline void CommutativeFloatOperatorBroadcastDispatch(const BinaryArithmeticOpParam &params, const Shape &input1_shape,
                                  const float *input1_data, const Shape &input2_shape,
                                  const float *input2_data, const Shape &output_shape,
@@ -589,7 +589,7 @@ inline void Sub(const BinaryArithmeticOpParam &params, const Shape &input1_shape
   (*implFuncs.first)(flat_size, params, input1_data, input2_data, output_data);
 }
 
-template<OPERATOR>
+template <typename OPERATOR>
 inline void NonCommutativeFloatOperatorBroadcastDispatch(const BinaryArithmeticOpParam &params, const Shape &input1_shape,
                                  const float *input1_data, const Shape &input2_shape,
                                  const float *input2_data, const Shape &output_shape,
@@ -611,7 +611,7 @@ inline void NonCommutativeFloatOperatorBroadcastDispatch(const BinaryArithmeticO
   else
   {
     const std::function<float(const float &, const float &)> fn =
-        [](const float &a, const float &b) -> float { OPERATOR::calculate(a, b); };
+        [](const float &a, const float &b) -> float { return OPERATOR::calculate(a, b); };
     reference::BroadcastBinaryArithmeticOpSlow(params, input1_shape, input1_data, input2_shape,
                                                input2_data, output_shape, output_data, fn);
   }
