@@ -15,6 +15,7 @@
  */
 
 #include "ElementwiseBinaryLayer.h"
+#include <cker/operation/BinaryArithmeticOps.h>
 
 #include "OperationUtils.h"
 
@@ -73,6 +74,31 @@ bool haveSameQauntInfo(const IPortableTensor *lhs, const IPortableTensor *rhs,
   return (lhs->data_scale() == rhs->data_scale() && lhs->data_scale() == output->data_scale()) &&
          (lhs->data_offset() == rhs->data_offset() && lhs->data_offset() == output->data_offset());
 }
+
+template <typename OPERATOR>
+void delegateBinaryOp(const IPortableTensor *lhs, const IPortableTensor *rhs,
+                      IPortableTensor *output)
+{
+  nnfw::cker::BinaryArithmeticOpParam op_params;
+  op_params.float_activation_min = std::numeric_limits<float>::lowest();
+  op_params.float_activation_max = std::numeric_limits<float>::max();
+  const bool need_broadcast =
+      nnfw::cker::ProcessBroadcastShapes(getTensorShape(lhs), getTensorShape(rhs), &op_params);
+  if (need_broadcast)
+  {
+    nnfw::cker::optimized::CommutativeFloatOperatorBroadcastDispatch<OPERATOR>(
+        op_params, getTensorShape(lhs), reinterpret_cast<const float *>(lhs->buffer()),
+        getTensorShape(rhs), reinterpret_cast<const float *>(rhs->buffer()), getTensorShape(output),
+        reinterpret_cast<float *>(output->buffer()));
+  }
+  else
+  {
+    const int flat_size = MatchingElementsSize(getTensorShape(lhs), getTensorShape(rhs), getTensorShape(output));
+    nnfw::cker::optimized::BinaryOpElementwise<OPERATOR, nnfw::cker::optimized::BinaryOpActivationFloatNone>(
+        flat_size, op_params, reinterpret_cast<const float *>(lhs->buffer()), reinterpret_cast<const float *>(rhs->buffer()), reinterpret_cast<float *>(output->buffer()));
+  }
+}
+
 } // namespace
 
 void ElementwiseBinaryLayer::configure(const IPortableTensor *lhs, const IPortableTensor *rhs,
@@ -109,7 +135,7 @@ void ElementwiseBinaryLayer::configure(const IPortableTensor *lhs, const IPortab
       }
       else if (_lhs->data_type() == OperandType::FLOAT32)
       {
-        _kernel = maximumGeneric<float>;
+        _kernel = delegateBinaryOp<nnfw::cker::optimized::BinaryOpFuncMaxFloat>;
       }
       else
       {
@@ -131,7 +157,7 @@ void ElementwiseBinaryLayer::configure(const IPortableTensor *lhs, const IPortab
       }
       else if (_lhs->data_type() == OperandType::FLOAT32)
       {
-        _kernel = minimumGeneric<float>;
+        _kernel = delegateBinaryOp<nnfw::cker::optimized::BinaryOpFuncMinFloat>;
       }
       else
       {
