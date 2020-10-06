@@ -93,9 +93,13 @@ void delegateBinaryOp(const IPortableTensor *lhs, const IPortableTensor *rhs,
   }
   else
   {
-    const int flat_size = MatchingElementsSize(getTensorShape(lhs), getTensorShape(rhs), getTensorShape(output));
-    nnfw::cker::optimized::BinaryOpElementwise<OPERATOR, nnfw::cker::optimized::BinaryOpActivationFloatNone>(
-        flat_size, op_params, reinterpret_cast<const float *>(lhs->buffer()), reinterpret_cast<const float *>(rhs->buffer()), reinterpret_cast<float *>(output->buffer()));
+    const int flat_size =
+        MatchingElementsSize(getTensorShape(lhs), getTensorShape(rhs), getTensorShape(output));
+    nnfw::cker::optimized::BinaryOpElementwise<OPERATOR,
+                                               nnfw::cker::optimized::BinaryOpActivationFloatNone>(
+        flat_size, op_params, reinterpret_cast<const float *>(lhs->buffer()),
+        reinterpret_cast<const float *>(rhs->buffer()),
+        reinterpret_cast<float *>(output->buffer()));
   }
 }
 
