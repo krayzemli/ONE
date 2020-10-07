@@ -35,8 +35,8 @@ namespace cker
 namespace optimized
 {
 
-template <typename ElementwiseF, typename ScalarBroadcastF, typename T>
-inline void BinaryBroadcastFiveFold(const BinaryArithmeticOpParam &params, bool switch_inputs,
+template <typename ElementwiseF, typename ScalarBroadcastF, typename T, typename OPERATORPARAMS>
+inline void BinaryBroadcastFiveFold(const OPERATORPARAMS &params, bool switch_inputs,
                                     const Shape & /* unswitched_input1_shape */,
                                     const T *unswitched_input1_data,
                                     const Shape & /* unswitched_input2_shape */,
@@ -122,7 +122,7 @@ inline void BinaryBroadcastFiveFold(const BinaryArithmeticOpParam &params, bool 
   }
 }
 
-inline int32_t quant8_sum(const BinaryArithmeticOpParam &params, const uint8_t input1_data,
+inline int32_t quant8_sum(const BinaryArithmeticOpParamQuantized &params, const uint8_t input1_data,
                           const uint8_t input2_data)
 {
   const int32_t input1_val = params.input1_offset + input1_data;
@@ -142,7 +142,7 @@ inline int32_t quant8_sum(const BinaryArithmeticOpParam &params, const uint8_t i
   return clamped_output;
 }
 
-inline void AddElementwiseQuant8(int size, const BinaryArithmeticOpParam &params,
+inline void AddElementwiseQuant8(int size, const BinaryArithmeticOpParamQuantized &params,
                                  const uint8_t *input1_data, const uint8_t *input2_data,
                                  uint8_t *output_data)
 {
@@ -367,7 +367,7 @@ struct BinaryOpActivationFloatMinMax
 };
 
 template <class OPERATOR, class ACTIVATION>
-inline void BinaryOpElementwise(int size, const BinaryArithmeticOpParam &params,
+inline void BinaryOpElementwise(int size, const BinaryArithmeticOpParamFloat &params,
                                 const float *input1_data, const float *input2_data,
                                 float *output_data)
 {
@@ -425,7 +425,7 @@ inline void BinaryOpElementwise(int size, const BinaryArithmeticOpParam &params,
 // This function will handle scalar_value (LHS) and vector_values (RHS).
 // Since it's a float function, input params does not matter here.
 template <class OPERATOR, class ACTIVATION>
-inline void BinaryOpScalarBroadcast(int size, const BinaryArithmeticOpParam &params,
+inline void BinaryOpScalarBroadcast(int size, const BinaryArithmeticOpParamFloat &params,
                                     const float broadcast_value, const float *input2_data,
                                     float *output_data)
 {
@@ -476,12 +476,12 @@ inline void BinaryOpScalarBroadcast(int size, const BinaryArithmeticOpParam &par
 }
 
 using BinaryOpImplFloatFuncs =
-    std::pair<void (*)(int, const BinaryArithmeticOpParam &, const float *, const float *, float *),
-              void (*)(int, const BinaryArithmeticOpParam &, const float, const float *, float *)>;
+    std::pair<void (*)(int, const BinaryArithmeticOpParamFloat &, const float *, const float *, float *),
+              void (*)(int, const BinaryArithmeticOpParamFloat &, const float, const float *, float *)>;
 
 template <class FUNC>
 inline BinaryOpImplFloatFuncs
-getBinaryOpWithActivationImplFloat(const BinaryArithmeticOpParam &params)
+getBinaryOpWithActivationImplFloat(const BinaryArithmeticOpParamFloat &params)
 {
   if (params.float_activation_max == std::numeric_limits<float>::max())
     if (params.float_activation_min == std::numeric_limits<float>::lowest())
@@ -495,7 +495,7 @@ getBinaryOpWithActivationImplFloat(const BinaryArithmeticOpParam &params)
                                   BinaryOpScalarBroadcast<FUNC, BinaryOpActivationFloatMinMax>);
 }
 
-inline void AddQuant8(const BinaryArithmeticOpParam &params, const Shape &input1_shape,
+inline void AddQuant8(const BinaryArithmeticOpParamQuantized &params, const Shape &input1_shape,
                       const uint8_t *input1_data, const Shape &input2_shape,
                       const uint8_t *input2_data, const Shape &output_shape, uint8_t *output_data)
 {
@@ -503,7 +503,7 @@ inline void AddQuant8(const BinaryArithmeticOpParam &params, const Shape &input1
   AddElementwiseQuant8(flat_size, params, input1_data, input2_data, output_data);
 }
 
-inline void Add(const BinaryArithmeticOpParam &params, const Shape &input1_shape,
+inline void Add(const BinaryArithmeticOpParamFloat &params, const Shape &input1_shape,
                 const float *input1_data, const Shape &input2_shape, const float *input2_data,
                 const Shape &output_shape, float *output_data)
 {
@@ -515,7 +515,7 @@ inline void Add(const BinaryArithmeticOpParam &params, const Shape &input1_shape
 // Scalar-broadcast add that can be used for inner loop of more general
 // broadcast add, so that, for example, scalar-broadcast with batch will still
 // be fast.
-inline void AddScalarBroadcastQuant8(int size, const BinaryArithmeticOpParam &params,
+inline void AddScalarBroadcastQuant8(int size, const BinaryArithmeticOpParamQuantized &params,
                                      uint8_t broadcast_value, const uint8_t *input2_data,
                                      uint8_t *output_data)
 {
@@ -528,7 +528,7 @@ inline void AddScalarBroadcastQuant8(int size, const BinaryArithmeticOpParam &pa
   }
 }
 
-inline void BroadcastAddDispatchQuant8(const BinaryArithmeticOpParam &params,
+inline void BroadcastAddDispatchQuant8(const BinaryArithmeticOpParamQuantized &params,
                                        const Shape &input1_shape, const uint8_t *input1_data,
                                        const Shape &input2_shape, const uint8_t *input2_data,
                                        const Shape &output_shape, uint8_t *output_data)
@@ -558,7 +558,7 @@ inline void BroadcastAddDispatchQuant8(const BinaryArithmeticOpParam &params,
 
 template <typename OPERATOR>
 inline void
-CommutativeFloatOperatorBroadcastDispatch(const BinaryArithmeticOpParam &params,
+CommutativeFloatOperatorBroadcastDispatch(const BinaryArithmeticOpParamFloat &params,
                                           const Shape &input1_shape, const float *input1_data,
                                           const Shape &input2_shape, const float *input2_data,
                                           const Shape &output_shape, float *output_data)
@@ -581,7 +581,7 @@ CommutativeFloatOperatorBroadcastDispatch(const BinaryArithmeticOpParam &params,
   }
 }
 
-inline void Sub(const BinaryArithmeticOpParam &params, const Shape &input1_shape,
+inline void Sub(const BinaryArithmeticOpParamFloat &params, const Shape &input1_shape,
                 const float *input1_data, const Shape &input2_shape, const float *input2_data,
                 const Shape &output_shape, float *output_data)
 {
@@ -592,7 +592,7 @@ inline void Sub(const BinaryArithmeticOpParam &params, const Shape &input1_shape
 
 template <typename OPERATOR>
 inline void
-NonCommutativeFloatOperatorBroadcastDispatch(const BinaryArithmeticOpParam &params,
+NonCommutativeFloatOperatorBroadcastDispatch(const BinaryArithmeticOpParamFloat &params,
                                              const Shape &input1_shape, const float *input1_data,
                                              const Shape &input2_shape, const float *input2_data,
                                              const Shape &output_shape, float *output_data)
@@ -618,7 +618,7 @@ NonCommutativeFloatOperatorBroadcastDispatch(const BinaryArithmeticOpParam &para
   }
 }
 
-inline int32_t quant8_mul(const BinaryArithmeticOpParam &params, const uint8_t input1_data,
+inline int32_t quant8_mul(const BinaryArithmeticOpParamFloat &params, const uint8_t input1_data,
                           const uint8_t input2_data)
 {
   const int32_t input1_val = params.input1_offset + input1_data;
@@ -633,7 +633,7 @@ inline int32_t quant8_mul(const BinaryArithmeticOpParam &params, const uint8_t i
   return clamped_output;
 }
 
-inline void MulElementwiseQuant8(int size, const BinaryArithmeticOpParam &params,
+inline void MulElementwiseQuant8(int size, const BinaryArithmeticOpParamQuantized &params,
                                  const uint8_t *input1_data, const uint8_t *input2_data,
                                  uint8_t *output_data)
 {
@@ -698,7 +698,7 @@ inline void MulElementwiseQuant8(int size, const BinaryArithmeticOpParam &params
   }
 }
 
-inline void MulQuant8(const BinaryArithmeticOpParam &params, const Shape &input1_shape,
+inline void MulQuant8(const BinaryArithmeticOpParamQuantized &params, const Shape &input1_shape,
                       const uint8_t *input1_data, const Shape &input2_shape,
                       const uint8_t *input2_data, const Shape &output_shape, uint8_t *output_data)
 {
@@ -706,7 +706,7 @@ inline void MulQuant8(const BinaryArithmeticOpParam &params, const Shape &input1
   MulElementwiseQuant8(flat_size, params, input1_data, input2_data, output_data);
 }
 
-inline void Mul(const BinaryArithmeticOpParam &params, const Shape &input1_shape,
+inline void Mul(const BinaryArithmeticOpParamFloat &params, const Shape &input1_shape,
                 const float *input1_data, const Shape &input2_shape, const float *input2_data,
                 const Shape &output_shape, float *output_data)
 {
@@ -715,7 +715,7 @@ inline void Mul(const BinaryArithmeticOpParam &params, const Shape &input1_shape
   (*implFuncs.first)(flat_size, params, input1_data, input2_data, output_data);
 }
 
-inline void MulSimpleBroadcastQuant8(int size, const BinaryArithmeticOpParam &params,
+inline void MulSimpleBroadcastQuant8(int size, const BinaryArithmeticOpParamQuantized &params,
                                      const uint8_t broadcast_value, const uint8_t *input2_data,
                                      uint8_t *output_data)
 {
@@ -728,7 +728,7 @@ inline void MulSimpleBroadcastQuant8(int size, const BinaryArithmeticOpParam &pa
   }
 }
 
-inline void BroadcastMulDispatchQuant8(const BinaryArithmeticOpParam &params,
+inline void BroadcastMulDispatchQuant8(const BinaryArithmeticOpParamQuantized &params,
                                        const Shape &input1_shape, const uint8_t *input1_data,
                                        const Shape &input2_shape, const uint8_t *input2_data,
                                        const Shape &output_shape, uint8_t *output_data)
@@ -754,7 +754,7 @@ inline void BroadcastMulDispatchQuant8(const BinaryArithmeticOpParam &params,
                            uint8_t *)>(MulSimpleBroadcastQuant8));
 }
 
-inline void Div(const BinaryArithmeticOpParam &params, const Shape &input1_shape,
+inline void Div(const BinaryArithmeticOpParamFloat &params, const Shape &input1_shape,
                 const float *input1_data, const Shape &input2_shape, const float *input2_data,
                 const Shape &output_shape, float *output_data)
 {
@@ -770,7 +770,7 @@ inline void Div(const BinaryArithmeticOpParam &params, const Shape &input1_shape
 #endif // __aarch64__
 }
 
-inline void BroadcastDivDispatch(const BinaryArithmeticOpParam &params, const Shape &input1_shape,
+inline void BroadcastDivDispatch(const BinaryArithmeticOpParamFloat &params, const Shape &input1_shape,
                                  const float *input1_data, const Shape &input2_shape,
                                  const float *input2_data, const Shape &output_shape,
                                  float *output_data)

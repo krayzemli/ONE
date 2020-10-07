@@ -32,7 +32,7 @@ namespace reference
 {
 
 template <typename T>
-inline void BinaryArithmeticOp(const BinaryArithmeticOpParam &params, const Shape &input1_shape,
+inline void BinaryArithmeticOp(const BinaryArithmeticOpParamQuantized &params, const Shape &input1_shape,
                                const T *input1_data, const Shape &input2_shape,
                                const T *input2_data, const Shape &output_shape, T *output_data,
                                const std::function<T(const T &, const T &)> &fn)
@@ -47,7 +47,7 @@ inline void BinaryArithmeticOp(const BinaryArithmeticOpParam &params, const Shap
 }
 
 template <>
-inline void BinaryArithmeticOp(const BinaryArithmeticOpParam &params, const Shape &input1_shape,
+inline void BinaryArithmeticOp(const BinaryArithmeticOpParamFloat &params, const Shape &input1_shape,
                                const float *input1_data, const Shape &input2_shape,
                                const float *input2_data, const Shape &output_shape,
                                float *output_data,
@@ -64,7 +64,7 @@ inline void BinaryArithmeticOp(const BinaryArithmeticOpParam &params, const Shap
 
 template <typename T>
 inline void BroadcastBinaryArithmeticOpSlowQuant8(
-    const BinaryArithmeticOpParam &params, const Shape &input1_shape, const T *input1_data,
+    const BinaryArithmeticOpParamQuantized &params, const Shape &input1_shape, const T *input1_data,
     const Shape &input2_shape, const T *input2_data, const Shape &output_shape, T *output_data,
     const std::function<T(const BinaryArithmeticOpParam &params, const T &, const T &)> &fn)
 {
@@ -110,7 +110,7 @@ inline void BroadcastBinaryArithmeticOpSlowQuant8(
   }
 }
 template <typename T>
-inline void BroadcastBinaryArithmeticOpSlow(const BinaryArithmeticOpParam &params,
+inline void BroadcastBinaryArithmeticOpSlow(const BinaryArithmeticOpParamQuantized &params,
                                             const Shape &input1_shape, const T *input1_data,
                                             const Shape &input2_shape, const T *input2_data,
                                             const Shape &output_shape, T *output_data,
@@ -154,7 +154,7 @@ inline void BroadcastBinaryArithmeticOpSlow(const BinaryArithmeticOpParam &param
 
 template <>
 inline void BroadcastBinaryArithmeticOpSlow(
-    const BinaryArithmeticOpParam &params, const Shape &input1_shape, const float *input1_data,
+    const BinaryArithmeticOpParamFloat &params, const Shape &input1_shape, const float *input1_data,
     const Shape &input2_shape, const float *input2_data, const Shape &output_shape,
     float *output_data, const std::function<float(const float &, const float &)> &fn)
 {

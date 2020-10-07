@@ -88,27 +88,27 @@ const std::function<T(const T &, const T &)> GetBinaryArtithmeticFn()
 // Returns true iff there is some sort of broadcast, which includes five-fold
 // patterns and falling back to generic broadcast.
 inline bool ProcessBroadcastShapes(const Shape &shape0, const Shape &shape1,
-                                   BinaryArithmeticOpParam *params)
+                                   BinaryArithmeticBroadcastParam * params)
 {
   const int dims_count = std::max(shape0.DimensionsCount(), shape1.DimensionsCount());
 
-  params->broadcast_category = BroadcastableOpCategory::kGenericBroadcast;
+  params.broadcast_category = BroadcastableOpCategory::kGenericBroadcast;
   Shape scalar_shape(dims_count, 1);
 
   auto extended_shape0 = Shape::ExtendedShape(dims_count, shape0);
   auto extended_shape1 = Shape::ExtendedShape(dims_count, shape1);
 
   // Check for "exact" match, implicitly accepting any scalar shapes.
-  if (extended_shape0 == extended_shape1)
-  {
-    params->broadcast_category = BroadcastableOpCategory::kNonBroadcast;
-    return false;
-  }
 
   for (int i = dims_count - 1; i >= 0; --i)
   {
     if (extended_shape0.Dims(i) == extended_shape1.Dims(i))
     {
+      if (i == 0)
+      {
+        params->broadcast_category = BroadcastableOpCategory::kNonBroadcast;
+        return false;
+      }
       continue;
     }
     else if (extended_shape0.Dims(i) == 1)
@@ -130,11 +130,8 @@ inline bool ProcessBroadcastShapes(const Shape &shape0, const Shape &shape1,
     }
   }
 
-  if (params->broadcast_category != BroadcastableOpCategory::kFirstInputBroadcastsFast &&
-      params->broadcast_category != BroadcastableOpCategory::kSecondInputBroadcastsFast)
-  {
-    return false;
-  }
+  assert(params->broadcast_category == BroadcastableOpCategory::kFirstInputBroadcastsFast ||
+      params->broadcast_category == BroadcastableOpCategory::kSecondInputBroadcastsFast);
 
   // From this point it is assumed contractually that corresponding dimensions
   // in shape0 and shape1 are either (a) equal or (b) one or other equals 1.
@@ -189,8 +186,8 @@ inline bool ProcessBroadcastShapes(const Shape &shape0, const Shape &shape1,
   return true;
 }
 
-template <BinaryArithmeticOpType op_type, typename T>
-inline void BinaryArithmeticOp(const BinaryArithmeticOpParam &params, const Shape &input1_shape,
+template <BinaryArithmeticOpType op_type, typename T, typename OPERATORPARAMS>
+inline void BinaryArithmeticOp(const OPERATORPARAMS &params, const Shape &input1_shape,
                                const T *input1_data, const Shape &input2_shape,
                                const T *input2_data, const Shape &output_shape, T *output_data)
 {
@@ -199,7 +196,7 @@ inline void BinaryArithmeticOp(const BinaryArithmeticOpParam &params, const Shap
 }
 
 template <BinaryArithmeticOpType op_type>
-inline void BinaryArithmeticOp(const BinaryArithmeticOpParam &params, const Shape &input1_shape,
+inline void BinaryArithmeticOp(const BinaryArithmeticOpParamQuantized &params, const Shape &input1_shape,
                                const uint8_t *input1_data, const Shape &input2_shape,
                                const uint8_t *input2_data, const Shape &output_shape,
                                uint8_t *output_data)
@@ -225,7 +222,7 @@ inline void BinaryArithmeticOp(const BinaryArithmeticOpParam &params, const Shap
 }
 
 template <BinaryArithmeticOpType op_type>
-inline void BinaryArithmeticOp(const BinaryArithmeticOpParam &params, const Shape &input1_shape,
+inline void BinaryArithmeticOp(const BinaryArithmeticOpParamFloat &params, const Shape &input1_shape,
                                const float *input1_data, const Shape &input2_shape,
                                const float *input2_data, const Shape &output_shape,
                                float *output_data)
@@ -255,8 +252,8 @@ inline void BinaryArithmeticOp(const BinaryArithmeticOpParam &params, const Shap
   }
 }
 
-template <BinaryArithmeticOpType op_type, typename T>
-inline void BroadcastBinaryArithmeticOp(BinaryArithmeticOpParam &params, const Shape &input1_shape,
+template <BinaryArithmeticOpType op_type, typename T, typename OPERATORPARAMS>
+inline void BroadcastBinaryArithmeticOp(OPERATORPARAMS &params, const Shape &input1_shape,
                                         const T *input1_data, const Shape &input2_shape,
                                         const T *input2_data, const Shape &output_shape,
                                         T *output_data)
@@ -267,7 +264,7 @@ inline void BroadcastBinaryArithmeticOp(BinaryArithmeticOpParam &params, const S
 }
 
 template <BinaryArithmeticOpType op_type>
-inline void BroadcastBinaryArithmeticOp(BinaryArithmeticOpParam &params, const Shape &input1_shape,
+inline void BroadcastBinaryArithmeticOp(BinaryArithmeticOpParamQuantized &params, const Shape &input1_shape,
                                         const uint8_t *input1_data, const Shape &input2_shape,
                                         const uint8_t *input2_data, const Shape &output_shape,
                                         uint8_t *output_data)
@@ -294,7 +291,7 @@ inline void BroadcastBinaryArithmeticOp(BinaryArithmeticOpParam &params, const S
 }
 
 template <BinaryArithmeticOpType op_type>
-inline void BroadcastBinaryArithmeticOp(BinaryArithmeticOpParam &params, const Shape &input1_shape,
+inline void BroadcastBinaryArithmeticOp(BinaryArithmeticOpParamFloat &params, const Shape &input1_shape,
                                         const float *input1_data, const Shape &input2_shape,
                                         const float *input2_data, const Shape &output_shape,
                                         float *output_data)

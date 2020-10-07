@@ -30,9 +30,67 @@ namespace ops
 namespace
 {
 
-template <nnfw::cker::BinaryArithmeticOpType arithmetic_type, typename T>
+struct FloatOpFunctor
+{
+  nnfw::cker::BinaryArithmeticOpParamFloat m_op_params;
+  void (*m_elementwiseFunc)(int, const nnfw::cker::BinaryArithmeticOpParamFloat &, const float *, const float *, float *);
+  void (*m_swappedArgsElementwiseFunc)(int, const nnfw::cker::BinaryArithmeticOpParamFloat &, const float *, const float *, float *);
+  void (*m_lhsBroadcastFunc)(int, const nnfw::cker::BinaryArithmeticOpParamFloat &, const float, const float *, float *);
+  void (*m_rhsBroadcastFunc)(int, const nnfw::cker::BinaryArithmeticOpParamFloat &, const float, const float *, float *);
+  void (*m_genericFunc)(int, const nnfw::cker::BinaryArithmeticOpParamFloat &, const float, const float *, float *);
+  std::function<float(const float &, const float &)> m_genericFunc;
+
+  template<typename OPERATOR, typename SWAPPEDARGSOPERATOR>
+  FloatOpFunctor(const nnfw::cker::BinaryArithmeticOpParamFloat & op_params, const OPERATOR &, const SWAPPEDARGSOPERATOR &)
+    : m_op_params(op_params)
+  {
+    auto op_func1 = nnfw::cker::optimized::getBinaryOpWithActivationImplFloat<OPERATOR>(m_op_params);
+    auto op_func2 = nnfw::cker::optimized::getBinaryOpWithActivationImplFloat<SWAPPEDARGSOPERATOR>(m_op_params);
+    m_elementwiseFunc = op_func1.first;
+    m_swappedArgsElementwiseFunc = op_func2.first;
+    m_lhsBroadcastFunc = op_func1.second;
+    m_rhsBroadcastFunc = op_func2.second;
+    m_genericFunc = [](const float &a, const float &b) -> float { return OPERATOR::calculate(a, b); };
+  }
+
+  void operator()(const IPortableTensor *lhs, const IPortableTensor *rhs, IPortableTensor *output)
+  {
+    const auto lhsShape = getTensorShape(lhs);
+    const auto rhsShape = getTensorShape(rhs);
+    const bool need_broadcast = nnfw::cker::ProcessBroadcastShapes(lhsShape, rhsShape, &m_op_params);
+    const auto outputShape = getTensorShape(output);
+    const float * const lhsBuffer = reinterpret_cast<const float *>(lhs->buffer());
+    const float * const rhsBuffer = reinterpret_cast<const float *>(rhs->buffer());
+    float * const outputBuffer = reinterpret_cast<float *>(output->buffer());
+    if (need_broadcast)
+    {
+      if (m_op_params.broadcast_category == BroadcastableOpCategory::kFirstInputBroadcastsFast)
+      {
+        nnfw::cker::optimized::BinaryBroadcastFiveFold(m_op_params, false, lhsShape, lhsBuffer, rhsShape, rhsBuffer,
+                            outputShape, outputBuffer, m_elementwiseFunc, m_lhsBroadcastFunc);
+      }
+      else if (m_op_params.broadcast_category == BroadcastableOpCategory::kSecondInputBroadcastsFast)
+      {
+        nnfw::cker::optimized::BinaryBroadcastFiveFold(m_op_params, true, lhsShape, lhsBuffer, rhsShape, rhsBuffer,
+                            outputShape, outputBuffer, m_swappedArgsElementwiseFunc, m_rhsBroadcastFunc);
+      }
+      else
+      {          
+        nnfw::cker::reference::BroadcastBinaryArithmeticOpSlow(m_op_params, lhsShape, lhsBuffer, rhsShape,
+                                               rhsBuffer, outputShape, outputBuffer, m_genericFunc);
+      }          
+    }
+    else
+    {
+      const int flat_size = nnfw::cker::MatchingElementsSize(lhsShapee, rhsShape, outputShape);
+      m_elementwiseFunc(flat_size, m_op_params, lhsBuffer, rhsBuffer, outputBuffer);
+    }
+  }
+};
+
+template <nnfw::cker::BinaryArithmeticOpType arithmetic_type, typename T, typename OPERATORPARAMS>
 void eval(const IPortableTensor *lhs, const IPortableTensor *rhs, IPortableTensor *output,
-          nnfw::cker::BinaryArithmeticOpParam op_params)
+          OPERATORPARAMS op_params)
 {
   const auto lhsShape = getTensorShape(lhs);
   const auto rhsShape = getTensorShape(rhs);
@@ -52,41 +110,9 @@ void eval(const IPortableTensor *lhs, const IPortableTensor *rhs, IPortableTenso
       reinterpret_cast<T *>(output->buffer()));
 }
 
-template <nnfw::cker::BinaryArithmeticOpType arithmetic_type>
-std::function<void(const IPortableTensor *, const IPortableTensor *, IPortableTensor *)>
-generateKernelGeneric(const IPortableTensor *lhs, const ir::Activation activation,
-                      nnfw::cker::BinaryArithmeticOpParam op_params)
-{
-  switch (lhs->data_type())
-  {
-    case OperandType::FLOAT32:
-    {
-      float output_activation_min = 0, output_activation_max = 0;
-      CalculateActivationRange(activation, &output_activation_min, &output_activation_max);
-      op_params.float_activation_max = output_activation_max;
-      op_params.float_activation_min = output_activation_min;
-      return std::bind(&eval<arithmetic_type, float>, std::placeholders::_1, std::placeholders::_2,
-                       std::placeholders::_3, op_params);
-      break;
-    }
-    case OperandType::INT32:
-    {
-      int32_t output_activation_min = 0, output_activation_max = 0;
-      CalculateActivationRange(activation, &output_activation_min, &output_activation_max);
-      op_params.quantized_activation_max = output_activation_max;
-      op_params.quantized_activation_min = output_activation_min;
-      return std::bind(eval<arithmetic_type, int32_t>, std::placeholders::_1, std::placeholders::_2,
-                       std::placeholders::_3, op_params);
-      break;
-    }
-    default:
-      throw std::runtime_error{"BinaryArithmetic(generic): Unsupported data type"};
-  }
-}
-
 void setAddOrSubQuant8Params(const IPortableTensor *lhs, const IPortableTensor *rhs,
                              IPortableTensor *output, ir::Activation activation,
-                             nnfw::cker::BinaryArithmeticOpParam *params)
+                             nnfw::cker::BinaryArithmeticOpParamQuantized *params)
 {
   int32_t output_activation_min, output_activation_max;
   CalculateActivationRangeUint8(activation, output, &output_activation_min, &output_activation_max);
@@ -120,7 +146,7 @@ void setAddOrSubQuant8Params(const IPortableTensor *lhs, const IPortableTensor *
 
 void setMulQuant8Params(const IPortableTensor *lhs, const IPortableTensor *rhs,
                         IPortableTensor *output, ir::Activation activation,
-                        nnfw::cker::BinaryArithmeticOpParam *params)
+                        nnfw::cker::BinaryArithmeticOpParamQuantized *params)
 {
   int32_t output_activation_min, output_activation_max;
   CalculateActivationRangeUint8(activation, output, &output_activation_min, &output_activation_max);
@@ -150,71 +176,108 @@ void BinaryArithmeticLayer::configure(const IPortableTensor *lhs, const IPortabl
   _rhs = rhs;
   _output = output;
 
-  nnfw::cker::BinaryArithmeticOpParam op_params;
-  switch (arithmetic_type)
+  switch (_lhs->data_type())
   {
-    case ArithmeticType::kAdd:
-      if (_lhs->data_type() == OperandType::QUANT_UINT8_ASYMM)
+  case OperandType::QUANT_UINT8_ASYMM:
+    {
+      nnfw::cker::BinaryArithmeticOpParamQuantized op_params;
+      switch (arithmetic_type)
       {
+      case ArithmeticType::kAdd:
         setAddOrSubQuant8Params(_lhs, _rhs, _output, activation, &op_params);
-        _kernel = std::bind(&eval<nnfw::cker::BinaryArithmeticOpType::ADD, uint8_t>,
+        _kernel = std::bind(&eval<nnfw::cker::BinaryArithmeticOpType::ADD, uint8_t, nnfw::cker::BinaryArithmeticOpParamQuantized>,
                             std::placeholders::_1, std::placeholders::_2, std::placeholders::_3,
                             op_params);
-      }
-      else
-      {
-        _kernel = generateKernelGeneric<nnfw::cker::BinaryArithmeticOpType::ADD>(_lhs, activation,
-                                                                                 op_params);
-      }
-      break;
-    case ArithmeticType::kSub:
-      if (_lhs->data_type() == OperandType::QUANT_UINT8_ASYMM)
-      {
+        break;
+      case ArithmeticType::kSub:
         setAddOrSubQuant8Params(_lhs, _rhs, _output, activation, &op_params);
         op_params.input2_multiplier *= -1;
-        _kernel = std::bind(&eval<nnfw::cker::BinaryArithmeticOpType::SUB, uint8_t>,
+        _kernel = std::bind(&eval<nnfw::cker::BinaryArithmeticOpType::SUB, uint8_t, nnfw::cker::BinaryArithmeticOpParamQuantized>,
                             std::placeholders::_1, std::placeholders::_2, std::placeholders::_3,
                             op_params);
-      }
-      else
-      {
-        _kernel = generateKernelGeneric<nnfw::cker::BinaryArithmeticOpType::SUB>(_lhs, activation,
-                                                                                 op_params);
-      }
-      break;
-    case ArithmeticType::kMul:
-      if (_lhs->data_type() == OperandType::QUANT_UINT8_ASYMM)
-      {
-        nnfw::cker::BinaryArithmeticOpParam op_params;
+        break;
+      case ArithmeticType::kMul:
         setMulQuant8Params(_lhs, _rhs, _output, activation, &op_params);
-        _kernel = std::bind(&eval<nnfw::cker::BinaryArithmeticOpType::MUL, uint8_t>,
+        _kernel = std::bind(&eval<nnfw::cker::BinaryArithmeticOpType::MUL, uint8_t, nnfw::cker::BinaryArithmeticOpParamQuantized>,
                             std::placeholders::_1, std::placeholders::_2, std::placeholders::_3,
                             op_params);
+        break;
+      case ArithmeticType::kDiv:
+        throw std::runtime_error{ "BinaryArithmetic(Div): Div operation does not support quantization"};
+
+      default:
+        throw std::runtime_error{"BinaryArithmetic: Unsupported BinaryArithmetic type"};
       }
-      else
+    }
+    break;
+
+  case OperandType::FLOAT32
+    {
+      using namespace nnfw::cker::optimized;
+      nnfw::cker::BinaryArithmeticOpParamFloat op_params;
+      float output_activation_min = 0, output_activation_max = 0;
+      CalculateActivationRange(activation, &output_activation_min, &output_activation_max);
+      op_params.float_activation_max = output_activation_max;
+      op_params.float_activation_min = output_activation_min;
+
+      switch (arithmetic_type)
       {
-        _kernel = generateKernelGeneric<nnfw::cker::BinaryArithmeticOpType::MUL>(_lhs, activation,
-                                                                                 op_params);
+      case ArithmeticType::kAdd:
+        _kernel = FloatOpFunctor(op_param, BinaryOpFuncAddFloat(), BinaryOpFuncAddFloat());
+        break;
+      case ArithmeticType::kSub:
+        _kernel = FloatOpFunctor(op_param, BinaryOpFuncSubFloat(), BinaryOpFuncSwapArgs<BinaryOpFuncSubFloat>());
+        break;
+      case ArithmeticType::kMul:
+        _kernel = FloatOpFunctor(op_param, BinaryOpFuncMulFloat(), BinaryOpFuncMulFloat());
+        break;
+      case ArithmeticType::kDiv:
+#ifdef __aarch64     
+        _kernel = FloatOpFunctor(op_param, BinaryOpFuncDivFloat(), BinaryOpFuncSwapArgs<BinaryOpFuncDivFloat>());
+#else
+        _kernel = std::bind(eval<nnfw::cker::BinaryArithmeticOpType::DIV, float, nnfw::cker::BinaryArithmeticOpParamFloat>,
+                            std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, op_params);
+#endif
+        break;
+      default:
+        throw std::runtime_error{"BinaryArithmetic: Unsupported BinaryArithmetic type"};
       }
-      break;
-    case ArithmeticType::kDiv:
-      if (_lhs->data_type() == OperandType::QUANT_UINT8_ASYMM)
+    }
+    break;
+
+  case OperandType::INT32
+    {
+      nnfw::cker::BinaryArithmeticOpParamQuantized op_params;
+      int32_t output_activation_min = 0, output_activation_max = 0;
+      CalculateActivationRange(activation, &output_activation_min, &output_activation_max);
+      op_params.quantized_activation_max = output_activation_max;
+      op_params.quantized_activation_min = output_activation_min;
+      switch (arithmetic_type)
       {
-        throw std::runtime_error{
-            "BinaryArithmetic(Div): Div operation does not support quantization"};
+      case ArithmeticType::kAdd:
+        _kernel = std::bind(eval<nnfw::cker::BinaryArithmeticOpType::ADD, int32_t, nnfw::cker::BinaryArithmeticOpParamQuantized>,
+                            std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, op_params);
+        break;
+      case ArithmeticType::kSub:
+        _kernel = std::bind(eval<nnfw::cker::BinaryArithmeticOpType::SUB, int32_t, nnfw::cker::BinaryArithmeticOpParamQuantized>,
+                            std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, op_params);
+        break;
+      case ArithmeticType::kMul:
+        _kernel = std::bind(eval<nnfw::cker::BinaryArithmeticOpType::MUL, int32_t, nnfw::cker::BinaryArithmeticOpParamQuantized>,
+                            std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, op_params);
+        break;
+      case ArithmeticType::kDiv:
+        _kernel = std::bind(eval<nnfw::cker::BinaryArithmeticOpType::DIV, int32_t, nnfw::cker::BinaryArithmeticOpParamQuantized>,
+                            std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, op_params);
+        break;
+      default:
+        throw std::runtime_error{"BinaryArithmetic: Unsupported BinaryArithmetic type"};
       }
-      else if (_lhs->data_type() == OperandType::INT32)
-      {
-        throw std::runtime_error{"BinaryArithmetic(Div): Unsupported data type"};
-      }
-      else
-      {
-        _kernel = generateKernelGeneric<nnfw::cker::BinaryArithmeticOpType::DIV>(_lhs, activation,
-                                                                                 op_params);
-      }
-      break;
-    default:
-      throw std::runtime_error{"BinaryArithmetic: Unsupported BinaryArithmetic type"};
+    }
+    break;
+
+  default:
+    throw std::runtime_error{"BinaryArithmetic: Unsupported data type"};
   }
 }
 
