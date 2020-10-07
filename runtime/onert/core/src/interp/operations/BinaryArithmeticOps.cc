@@ -89,7 +89,8 @@ void prepare(ExecEnv *env, const ir::Operation &node)
   }
 }
 
-inline void setActivationParams(float min, float max, nnfw::cker::BinaryArithmeticOpParamFloat *params)
+inline void setActivationParams(float min, float max,
+                                nnfw::cker::BinaryArithmeticOpParamFloat *params)
 {
   params->float_activation_min = min;
   params->float_activation_max = max;
@@ -158,11 +159,13 @@ void invokeBinaryArithmetic(const ExecEnv *env, const ir::operation::BinaryArith
 
   if (data_type == ir::DataType::INT32)
   {
-    invoke<int32_t, op_type, nnfw::cker::BinaryArithmeticOpParamQuantized>(lhs_tensor, rhs_tensor, out_tensor, node.param());
+    invoke<int32_t, op_type, nnfw::cker::BinaryArithmeticOpParamQuantized>(
+        lhs_tensor, rhs_tensor, out_tensor, node.param());
   }
   else if (data_type == ir::DataType::FLOAT32)
   {
-    invoke<float, op_type, nnfw::cker::BinaryArithmeticOpParamFloat>(lhs_tensor, rhs_tensor, out_tensor, node.param());
+    invoke<float, op_type, nnfw::cker::BinaryArithmeticOpParamFloat>(lhs_tensor, rhs_tensor,
+                                                                     out_tensor, node.param());
   }
   else
   {

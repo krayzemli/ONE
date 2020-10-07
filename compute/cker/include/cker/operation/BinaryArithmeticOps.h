@@ -88,7 +88,7 @@ const std::function<T(const T &, const T &)> GetBinaryArtithmeticFn()
 // Returns true iff there is some sort of broadcast, which includes five-fold
 // patterns and falling back to generic broadcast.
 inline bool ProcessBroadcastShapes(const Shape &shape0, const Shape &shape1,
-                                   BinaryArithmeticBroadcastParam * params)
+                                   BinaryArithmeticBroadcastParam *params)
 {
   const int dims_count = std::max(shape0.DimensionsCount(), shape1.DimensionsCount());
 
@@ -131,7 +131,7 @@ inline bool ProcessBroadcastShapes(const Shape &shape0, const Shape &shape1,
   }
 
   assert(params->broadcast_category == BroadcastableOpCategory::kFirstInputBroadcastsFast ||
-      params->broadcast_category == BroadcastableOpCategory::kSecondInputBroadcastsFast);
+         params->broadcast_category == BroadcastableOpCategory::kSecondInputBroadcastsFast);
 
   // From this point it is assumed contractually that corresponding dimensions
   // in shape0 and shape1 are either (a) equal or (b) one or other equals 1.
@@ -196,10 +196,10 @@ inline void BinaryArithmeticOp(const OPERATORPARAMS &params, const Shape &input1
 }
 
 template <BinaryArithmeticOpType op_type>
-inline void BinaryArithmeticOp(const BinaryArithmeticOpParamQuantized &params, const Shape &input1_shape,
-                               const uint8_t *input1_data, const Shape &input2_shape,
-                               const uint8_t *input2_data, const Shape &output_shape,
-                               uint8_t *output_data)
+inline void BinaryArithmeticOp(const BinaryArithmeticOpParamQuantized &params,
+                               const Shape &input1_shape, const uint8_t *input1_data,
+                               const Shape &input2_shape, const uint8_t *input2_data,
+                               const Shape &output_shape, uint8_t *output_data)
 {
   switch (op_type)
   {
@@ -222,10 +222,10 @@ inline void BinaryArithmeticOp(const BinaryArithmeticOpParamQuantized &params, c
 }
 
 template <BinaryArithmeticOpType op_type>
-inline void BinaryArithmeticOp(const BinaryArithmeticOpParamFloat &params, const Shape &input1_shape,
-                               const float *input1_data, const Shape &input2_shape,
-                               const float *input2_data, const Shape &output_shape,
-                               float *output_data)
+inline void BinaryArithmeticOp(const BinaryArithmeticOpParamFloat &params,
+                               const Shape &input1_shape, const float *input1_data,
+                               const Shape &input2_shape, const float *input2_data,
+                               const Shape &output_shape, float *output_data)
 {
   // Supported type is only float now
   switch (op_type)
@@ -264,10 +264,10 @@ inline void BroadcastBinaryArithmeticOp(OPERATORPARAMS &params, const Shape &inp
 }
 
 template <BinaryArithmeticOpType op_type>
-inline void BroadcastBinaryArithmeticOp(BinaryArithmeticOpParamQuantized &params, const Shape &input1_shape,
-                                        const uint8_t *input1_data, const Shape &input2_shape,
-                                        const uint8_t *input2_data, const Shape &output_shape,
-                                        uint8_t *output_data)
+inline void BroadcastBinaryArithmeticOp(BinaryArithmeticOpParamQuantized &params,
+                                        const Shape &input1_shape, const uint8_t *input1_data,
+                                        const Shape &input2_shape, const uint8_t *input2_data,
+                                        const Shape &output_shape, uint8_t *output_data)
 {
   switch (op_type)
   {
@@ -291,10 +291,10 @@ inline void BroadcastBinaryArithmeticOp(BinaryArithmeticOpParamQuantized &params
 }
 
 template <BinaryArithmeticOpType op_type>
-inline void BroadcastBinaryArithmeticOp(BinaryArithmeticOpParamFloat &params, const Shape &input1_shape,
-                                        const float *input1_data, const Shape &input2_shape,
-                                        const float *input2_data, const Shape &output_shape,
-                                        float *output_data)
+inline void BroadcastBinaryArithmeticOp(BinaryArithmeticOpParamFloat &params,
+                                        const Shape &input1_shape, const float *input1_data,
+                                        const Shape &input2_shape, const float *input2_data,
+                                        const Shape &output_shape, float *output_data)
 {
   // Supported type is only float now
   switch (op_type)
@@ -316,9 +316,9 @@ inline void BroadcastBinaryArithmeticOp(BinaryArithmeticOpParamFloat &params, co
                                       output_shape, output_data);
       break;
     case nnfw::cker::BinaryArithmeticOpType::POW:
-      reference::BroadcastBinaryArithmeticOpSlow(
-          params, input1_shape, input1_data, input2_shape, input2_data, output_shape, output_data,
-          GetBinaryArtithmeticFn<op_type, float>());
+      reference::BroadcastBinaryArithmeticOpSlow(params, input1_shape, input1_data, input2_shape,
+                                                 input2_data, output_shape, output_data,
+                                                 GetBinaryArtithmeticFn<op_type, float>());
       break;
     default:
       assert(false);
