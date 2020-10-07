@@ -89,20 +89,20 @@ void prepare(ExecEnv *env, const ir::Operation &node)
   }
 }
 
-inline void setActivationParams(float min, float max, nnfw::cker::BinaryArithmeticOpParam *params)
+inline void setActivationParams(float min, float max, nnfw::cker::BinaryArithmeticOpParamFloat *params)
 {
   params->float_activation_min = min;
   params->float_activation_max = max;
 }
 
 inline void setActivationParams(int32_t min, int32_t max,
-                                nnfw::cker::BinaryArithmeticOpParam *params)
+                                nnfw::cker::BinaryArithmeticOpParamQuantized *params)
 {
   params->quantized_activation_min = min;
   params->quantized_activation_max = max;
 }
 
-template <typename raw_type, OpType op_type>
+template <typename raw_type, OpType op_type, typename OPERATORPARAMS>
 void invoke(const ITensor *lhs_tensor, const ITensor *rhs_tensor, const ITensor *out_tensor,
             const ir::operation::BinaryArithmetic::Param &param)
 {
@@ -110,7 +110,7 @@ void invoke(const ITensor *lhs_tensor, const ITensor *rhs_tensor, const ITensor 
   const auto rhs_buffer = rhs_tensor->bufferRO();
   auto out_buffer = out_tensor->buffer();
 
-  nnfw::cker::BinaryArithmeticOpParam cker_param;
+  OPERATORPARAMS cker_param;
   raw_type activation_min, activation_max;
   calculateActivationRange(param.activation, &activation_min, &activation_max);
   setActivationParams(activation_min, activation_max, &cker_param);
@@ -158,11 +158,11 @@ void invokeBinaryArithmetic(const ExecEnv *env, const ir::operation::BinaryArith
 
   if (data_type == ir::DataType::INT32)
   {
-    invoke<int32_t, op_type>(lhs_tensor, rhs_tensor, out_tensor, node.param());
+    invoke<int32_t, op_type, nnfw::cker::BinaryArithmeticOpParamQuantized>(lhs_tensor, rhs_tensor, out_tensor, node.param());
   }
   else if (data_type == ir::DataType::FLOAT32)
   {
-    invoke<float, op_type>(lhs_tensor, rhs_tensor, out_tensor, node.param());
+    invoke<float, op_type, nnfw::cker::BinaryArithmeticOpParamFloat>(lhs_tensor, rhs_tensor, out_tensor, node.param());
   }
   else
   {

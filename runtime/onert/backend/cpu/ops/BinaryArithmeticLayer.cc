@@ -37,7 +37,6 @@ struct FloatOpFunctor
   void (*m_swappedArgsElementwiseFunc)(int, const nnfw::cker::BinaryArithmeticOpParamFloat &, const float *, const float *, float *);
   void (*m_lhsBroadcastFunc)(int, const nnfw::cker::BinaryArithmeticOpParamFloat &, const float, const float *, float *);
   void (*m_rhsBroadcastFunc)(int, const nnfw::cker::BinaryArithmeticOpParamFloat &, const float, const float *, float *);
-  void (*m_genericFunc)(int, const nnfw::cker::BinaryArithmeticOpParamFloat &, const float, const float *, float *);
   std::function<float(const float &, const float &)> m_genericFunc;
 
   template<typename OPERATOR, typename SWAPPEDARGSOPERATOR>
@@ -64,12 +63,12 @@ struct FloatOpFunctor
     float * const outputBuffer = reinterpret_cast<float *>(output->buffer());
     if (need_broadcast)
     {
-      if (m_op_params.broadcast_category == BroadcastableOpCategory::kFirstInputBroadcastsFast)
+      if (m_op_params.broadcast_category == nnfw::cker::BroadcastableOpCategory::kFirstInputBroadcastsFast)
       {
         nnfw::cker::optimized::BinaryBroadcastFiveFold(m_op_params, false, lhsShape, lhsBuffer, rhsShape, rhsBuffer,
                             outputShape, outputBuffer, m_elementwiseFunc, m_lhsBroadcastFunc);
       }
-      else if (m_op_params.broadcast_category == BroadcastableOpCategory::kSecondInputBroadcastsFast)
+      else if (m_op_params.broadcast_category == nnfw::cker::BroadcastableOpCategory::kSecondInputBroadcastsFast)
       {
         nnfw::cker::optimized::BinaryBroadcastFiveFold(m_op_params, true, lhsShape, lhsBuffer, rhsShape, rhsBuffer,
                             outputShape, outputBuffer, m_swappedArgsElementwiseFunc, m_rhsBroadcastFunc);
@@ -82,7 +81,7 @@ struct FloatOpFunctor
     }
     else
     {
-      const int flat_size = nnfw::cker::MatchingElementsSize(lhsShapee, rhsShape, outputShape);
+      const int flat_size = nnfw::cker::MatchingElementsSize(lhsShape, rhsShape, outputShape);
       m_elementwiseFunc(flat_size, m_op_params, lhsBuffer, rhsBuffer, outputBuffer);
     }
   }
@@ -116,7 +115,7 @@ void setAddOrSubQuant8Params(const IPortableTensor *lhs, const IPortableTensor *
 {
   int32_t output_activation_min, output_activation_max;
   CalculateActivationRangeUint8(activation, output, &output_activation_min, &output_activation_max);
-  nnfw::cker::BinaryArithmeticOpParam &op_params = *params;
+  nnfw::cker::BinaryArithmeticOpParamQuantized &op_params = *params;
   op_params.quantized_activation_max = output_activation_max;
   op_params.quantized_activation_min = output_activation_min;
   // Parameters for scaled quantized computation
@@ -150,7 +149,7 @@ void setMulQuant8Params(const IPortableTensor *lhs, const IPortableTensor *rhs,
 {
   int32_t output_activation_min, output_activation_max;
   CalculateActivationRangeUint8(activation, output, &output_activation_min, &output_activation_max);
-  nnfw::cker::BinaryArithmeticOpParam &op_params = *params;
+  nnfw::cker::BinaryArithmeticOpParamQuantized &op_params = *params;
 
   op_params.quantized_activation_max = output_activation_max;
   op_params.quantized_activation_min = output_activation_min;
@@ -211,7 +210,7 @@ void BinaryArithmeticLayer::configure(const IPortableTensor *lhs, const IPortabl
     }
     break;
 
-  case OperandType::FLOAT32
+  case OperandType::FLOAT32:
     {
       using namespace nnfw::cker::optimized;
       nnfw::cker::BinaryArithmeticOpParamFloat op_params;
@@ -223,17 +222,17 @@ void BinaryArithmeticLayer::configure(const IPortableTensor *lhs, const IPortabl
       switch (arithmetic_type)
       {
       case ArithmeticType::kAdd:
-        _kernel = FloatOpFunctor(op_param, BinaryOpFuncAddFloat(), BinaryOpFuncAddFloat());
+        _kernel = FloatOpFunctor(op_params, BinaryOpFuncAddFloat(), BinaryOpFuncAddFloat());
         break;
       case ArithmeticType::kSub:
-        _kernel = FloatOpFunctor(op_param, BinaryOpFuncSubFloat(), BinaryOpFuncSwapArgs<BinaryOpFuncSubFloat>());
+        _kernel = FloatOpFunctor(op_params, BinaryOpFuncSubFloat(), BinaryOpFuncSwapArgs<BinaryOpFuncSubFloat>());
         break;
       case ArithmeticType::kMul:
-        _kernel = FloatOpFunctor(op_param, BinaryOpFuncMulFloat(), BinaryOpFuncMulFloat());
+        _kernel = FloatOpFunctor(op_params, BinaryOpFuncMulFloat(), BinaryOpFuncMulFloat());
         break;
       case ArithmeticType::kDiv:
 #ifdef __aarch64     
-        _kernel = FloatOpFunctor(op_param, BinaryOpFuncDivFloat(), BinaryOpFuncSwapArgs<BinaryOpFuncDivFloat>());
+        _kernel = FloatOpFunctor(op_params, BinaryOpFuncDivFloat(), BinaryOpFuncSwapArgs<BinaryOpFuncDivFloat>());
 #else
         _kernel = std::bind(eval<nnfw::cker::BinaryArithmeticOpType::DIV, float, nnfw::cker::BinaryArithmeticOpParamFloat>,
                             std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, op_params);
@@ -245,7 +244,7 @@ void BinaryArithmeticLayer::configure(const IPortableTensor *lhs, const IPortabl
     }
     break;
 
-  case OperandType::INT32
+  case OperandType::INT32:
     {
       nnfw::cker::BinaryArithmeticOpParamQuantized op_params;
       int32_t output_activation_min = 0, output_activation_max = 0;

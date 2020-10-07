@@ -32,7 +32,7 @@ void PowLayer::powFloat32()
 {
   float output_activation_min = 0, output_activation_max = 0;
   CalculateActivationRange(_activation, &output_activation_min, &output_activation_max);
-  nnfw::cker::BinaryArithmeticOpParam op_params;
+  nnfw::cker::BinaryArithmeticOpParamFloat op_params;
   op_params.float_activation_max = output_activation_max;
   op_params.float_activation_min = output_activation_min;
 

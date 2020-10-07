@@ -92,7 +92,7 @@ inline bool ProcessBroadcastShapes(const Shape &shape0, const Shape &shape1,
 {
   const int dims_count = std::max(shape0.DimensionsCount(), shape1.DimensionsCount());
 
-  params.broadcast_category = BroadcastableOpCategory::kGenericBroadcast;
+  params->broadcast_category = BroadcastableOpCategory::kGenericBroadcast;
   Shape scalar_shape(dims_count, 1);
 
   auto extended_shape0 = Shape::ExtendedShape(dims_count, shape0);
@@ -316,7 +316,7 @@ inline void BroadcastBinaryArithmeticOp(BinaryArithmeticOpParamFloat &params, co
                                       output_shape, output_data);
       break;
     case nnfw::cker::BinaryArithmeticOpType::POW:
-      reference::BroadcastBinaryArithmeticOpSlow<float>(
+      reference::BroadcastBinaryArithmeticOpSlow(
           params, input1_shape, input1_data, input2_shape, input2_data, output_shape, output_data,
           GetBinaryArtithmeticFn<op_type, float>());
       break;

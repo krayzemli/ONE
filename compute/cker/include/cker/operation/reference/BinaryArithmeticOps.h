@@ -46,7 +46,6 @@ inline void BinaryArithmeticOp(const BinaryArithmeticOpParamQuantized &params, c
   }
 }
 
-template <>
 inline void BinaryArithmeticOp(const BinaryArithmeticOpParamFloat &params, const Shape &input1_shape,
                                const float *input1_data, const Shape &input2_shape,
                                const float *input2_data, const Shape &output_shape,
@@ -66,7 +65,7 @@ template <typename T>
 inline void BroadcastBinaryArithmeticOpSlowQuant8(
     const BinaryArithmeticOpParamQuantized &params, const Shape &input1_shape, const T *input1_data,
     const Shape &input2_shape, const T *input2_data, const Shape &output_shape, T *output_data,
-    const std::function<T(const BinaryArithmeticOpParam &params, const T &, const T &)> &fn)
+    const std::function<T(const BinaryArithmeticOpParamQuantized &params, const T &, const T &)> &fn)
 {
   NdArrayDesc<4> desc1;
   NdArrayDesc<4> desc2;
@@ -152,7 +151,6 @@ inline void BroadcastBinaryArithmeticOpSlow(const BinaryArithmeticOpParamQuantiz
   }
 }
 
-template <>
 inline void BroadcastBinaryArithmeticOpSlow(
     const BinaryArithmeticOpParamFloat &params, const Shape &input1_shape, const float *input1_data,
     const Shape &input2_shape, const float *input2_data, const Shape &output_shape,

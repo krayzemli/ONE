@@ -535,8 +535,8 @@ inline void BroadcastAddDispatchQuant8(const BinaryArithmeticOpParamQuantized &p
 {
   if (params.broadcast_category == BroadcastableOpCategory::kGenericBroadcast)
   {
-    const std::function<uint8_t(const BinaryArithmeticOpParam &, const uint8_t &, const uint8_t &)>
-        fn = [](const BinaryArithmeticOpParam &params, const uint8_t &a,
+    const std::function<uint8_t(const BinaryArithmeticOpParamQuantized &, const uint8_t &, const uint8_t &)>
+        fn = [](const BinaryArithmeticOpParamQuantized &params, const uint8_t &a,
                 const uint8_t &b) -> uint8_t {
       return static_cast<uint8_t>(quant8_sum(params, a, b));
     };
@@ -549,9 +549,9 @@ inline void BroadcastAddDispatchQuant8(const BinaryArithmeticOpParamQuantized &p
     BinaryBroadcastFiveFold(
         params, params.broadcast_category == BroadcastableOpCategory::kSecondInputBroadcastsFast,
         input1_shape, input1_data, input2_shape, input2_data, output_shape, output_data,
-        static_cast<void (*)(int, const BinaryArithmeticOpParam &, const uint8_t *, const uint8_t *,
+        static_cast<void (*)(int, const BinaryArithmeticOpParamQuantized &, const uint8_t *, const uint8_t *,
                              uint8_t *)>(AddElementwiseQuant8),
-        static_cast<void (*)(int, const BinaryArithmeticOpParam &, uint8_t, const uint8_t *,
+        static_cast<void (*)(int, const BinaryArithmeticOpParamQuantized &, uint8_t, const uint8_t *,
                              uint8_t *)>(AddScalarBroadcastQuant8));
   }
 }
@@ -618,7 +618,7 @@ NonCommutativeFloatOperatorBroadcastDispatch(const BinaryArithmeticOpParamFloat 
   }
 }
 
-inline int32_t quant8_mul(const BinaryArithmeticOpParamFloat &params, const uint8_t input1_data,
+inline int32_t quant8_mul(const BinaryArithmeticOpParamQuantized &params, const uint8_t input1_data,
                           const uint8_t input2_data)
 {
   const int32_t input1_val = params.input1_offset + input1_data;
@@ -735,8 +735,8 @@ inline void BroadcastMulDispatchQuant8(const BinaryArithmeticOpParamQuantized &p
 {
   if (params.broadcast_category == BroadcastableOpCategory::kGenericBroadcast)
   {
-    const std::function<uint8_t(const BinaryArithmeticOpParam &, const uint8_t &, const uint8_t &)>
-        fn = [](const BinaryArithmeticOpParam &params, const uint8_t &a,
+    const std::function<uint8_t(const BinaryArithmeticOpParamQuantized &, const uint8_t &, const uint8_t &)>
+        fn = [](const BinaryArithmeticOpParamQuantized &params, const uint8_t &a,
                 const uint8_t &b) -> uint8_t {
       return static_cast<uint8_t>(quant8_mul(params, a, b));
     };
@@ -748,9 +748,9 @@ inline void BroadcastMulDispatchQuant8(const BinaryArithmeticOpParamQuantized &p
   BinaryBroadcastFiveFold(
       params, params.broadcast_category == BroadcastableOpCategory::kSecondInputBroadcastsFast,
       input1_shape, input1_data, input2_shape, input2_data, output_shape, output_data,
-      static_cast<void (*)(int, const BinaryArithmeticOpParam &, const uint8_t *, const uint8_t *,
+      static_cast<void (*)(int, const BinaryArithmeticOpParamQuantized &, const uint8_t *, const uint8_t *,
                            uint8_t *)>(MulElementwiseQuant8),
-      static_cast<void (*)(int, const BinaryArithmeticOpParam &, uint8_t, const uint8_t *,
+      static_cast<void (*)(int, const BinaryArithmeticOpParamQuantized &, uint8_t, const uint8_t *,
                            uint8_t *)>(MulSimpleBroadcastQuant8));
 }
 
