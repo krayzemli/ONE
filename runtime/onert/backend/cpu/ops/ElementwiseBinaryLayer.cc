@@ -79,22 +79,22 @@ template <typename OPERATOR>
 void delegateBinaryOp(const IPortableTensor *lhs, const IPortableTensor *rhs,
                       IPortableTensor *output)
 {
+  const auto lhsShape = getTensorShape(lhs);
+  const auto rhsShape = getTensorShape(rhs);
   nnfw::cker::BinaryArithmeticOpParam op_params;
   op_params.float_activation_min = std::numeric_limits<float>::lowest();
   op_params.float_activation_max = std::numeric_limits<float>::max();
-  const bool need_broadcast =
-      nnfw::cker::ProcessBroadcastShapes(getTensorShape(lhs), getTensorShape(rhs), &op_params);
+  const bool need_broadcast = nnfw::cker::ProcessBroadcastShapes(lhsShape, rhsShape, &op_params);
   if (need_broadcast)
   {
     nnfw::cker::optimized::CommutativeFloatOperatorBroadcastDispatch<OPERATOR>(
-        op_params, getTensorShape(lhs), reinterpret_cast<const float *>(lhs->buffer()),
-        getTensorShape(rhs), reinterpret_cast<const float *>(rhs->buffer()), getTensorShape(output),
+        op_params, lhsShape, reinterpret_cast<const float *>(lhs->buffer()), rhsShape,
+        reinterpret_cast<const float *>(rhs->buffer()), getTensorShape(output),
         reinterpret_cast<float *>(output->buffer()));
   }
   else
   {
-    const int flat_size =
-        MatchingElementsSize(getTensorShape(lhs), getTensorShape(rhs), getTensorShape(output));
+    const int flat_size = MatchingElementsSize(lhsShape, rhsShape, getTensorShape(output));
     nnfw::cker::optimized::BinaryOpElementwise<OPERATOR,
                                                nnfw::cker::optimized::BinaryOpActivationFloatNone>(
         flat_size, op_params, reinterpret_cast<const float *>(lhs->buffer()),
