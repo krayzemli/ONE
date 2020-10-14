@@ -48,9 +48,9 @@ template <nnfw::cker::BinaryArithmeticOpType arithmetic_type, typename T> struct
 
   void updateCache(const IPortableTensor *lhs, const IPortableTensor *rhs, IPortableTensor *output)
   {
-    _lhs_shape.ReplaceWith(getTensorShape(lhs));
-    _rhs_shape.ReplaceWith(getTensorShape(rhs));
-    _output_shape.ReplaceWith(getTensorShape(output));
+    copyTensorShape(lhs, _lhs_shape);
+    copyTensorShape(rhs, _rhs_shape);
+    copyTensorShape(output, _output_shape);
     _need_broadcast = nnfw::cker::ProcessBroadcastShapes(_lhs_shape, _rhs_shape, &_op_params);
   }
 

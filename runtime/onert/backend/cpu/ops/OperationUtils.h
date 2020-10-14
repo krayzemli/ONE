@@ -106,6 +106,24 @@ inline nnfw::cker::Shape getTensorShape(const IPortableTensor *tensor)
   return ret;
 }
 
+inline void copyTensorShape(const IPortableTensor *tensor, nnfw::cker::Shape & dst)
+{
+  if (tensor == nullptr)
+  {
+    dst.Resize(0);
+    return;
+  }
+
+  assert(tensor->layout() == ir::Layout::NHWC);
+  auto rank = tensor->num_dimensions();
+  dst.Resize(rank);
+  auto data = dst.DimsData();
+  for (uint32_t i = 0; i < rank; ++i)
+  {
+    data[i] = tensor->dimension(i);
+  }
+}
+
 inline nnfw::cker::FusedActivationFunctionType
 convertActivationType(const ir::Activation activation)
 {
