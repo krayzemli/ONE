@@ -90,6 +90,8 @@ class Tensor
 {
 public:
   Tensor(DataType element_type, Shape shape, AffineQuantization quantization, std::string name);
+  Tensor(Tensor &&t2);
+  ~Tensor();
 
   DataType element_type() const { return _element_type; }
 
@@ -143,6 +145,7 @@ private:
   AffineQuantization _quantization;
   std::unique_ptr<uint8_t[]> _data;
   std::string _name;
+  size_t _memsize;
 };
 
 } // namespace luci_interpreter
